@@ -164,7 +164,49 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 // The caller is responsible for calling free(*data_out).
 // Returns 0 on success, -1 on error (file not found, corrupt, etc.).
 int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out) {
-    // TODO: Implement
-    (void)id; (void)type_out; (void)data_out; (void)len_out;
-    return -1;
+    char hash_hex[HASH_HEX_SIZE];
+    hash_to_hex(id, hash_hex); // Convert ObjectID to hex string for the path
+
+    char file_path[PATH_MAX];
+    snprintf(file_path, sizeof(file_path), ".pes/objects/%.2s/%s", hash_hex, hash_hex + 2);
+
+    FILE *f = fopen(file_path, "rb");
+    if (!f) return -1;
+
+    // Get total file size
+    fseek(f, 0, SEEK_END);
+    long total_size = ftell(f);
+    rewind(f);
+
+    unsigned char *content = malloc(total_size);
+    if (!content) { fclose(f); return -1; }
+    fread(content, 1, total_size, f);
+    fclose(f);
+
+    // Locate the null byte separating header "type size\0" from raw data
+    char *null_byte = memchr(content, '\0', total_size);
+    if (!null_byte) {
+        free(content);
+        return -1;
+    }
+
+    // Parse the header
+    char type_str[16];
+    size_t size;
+    sscanf((char *)content, "%s %zu", type_str, &size);
+
+    // Map string type to ObjectType enum
+    if (strcmp(type_str, "blob") == 0) *type_out = OBJ_BLOB;
+    else if (strcmp(type_str, "tree") == 0) *type_out = OBJ_TREE;
+    else if (strcmp(type_str, "commit") == 0) *type_out = OBJ_COMMIT;
+
+    // Copy the actual data portion
+    *data_out = malloc(size);
+    if (!*data_out) { free(content); return -1; }
+    
+    memcpy(*data_out, null_byte + 1, size);
+    *len_out = size;
+
+    free(content);
+    return 0;
 }
