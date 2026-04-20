@@ -123,6 +123,21 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     mkdir(".pes", 0755);
     mkdir(".pes/objects", 0755);
     mkdir(dir_path, 0755);
+    // 4. Write atomically using temp file
+    char temp_path[PATH_MAX];
+    snprintf(temp_path, sizeof(temp_path), "%s/tmp_XXXXXX", dir_path);
+    int fd = mkstemp(temp_path);
+    if (fd < 0) return -1;
+
+    write(fd, header, header_len);
+    write(fd, data, size);
+    close(fd);
+
+    if (rename(temp_path, file_path) < 0) {
+        unlink(temp_path);
+        return -1;
+    }
+    return 0;
     return -1;
 }
 
