@@ -113,6 +113,16 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
         sprintf(&sha256_hex[i * 2], "%02x", hash[i]);
     }
+    // 3. Determine storage path (.pes/objects/XX/YYYY...)
+    char dir_path[PATH_MAX];
+    char file_path[PATH_MAX];
+    snprintf(dir_path, sizeof(dir_path), ".pes/objects/%.2s", sha256_hex);
+    snprintf(file_path, sizeof(file_path), "%s/%s", dir_path, sha256_hex + 2);
+
+    // Create the sharded directory structure
+    mkdir(".pes", 0755);
+    mkdir(".pes/objects", 0755);
+    mkdir(dir_path, 0755);
     return -1;
 }
 
