@@ -96,6 +96,23 @@ int object_exists(const ObjectID *id) {
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
     // TODO: Implement
     (void)type; (void)data; (void)len; (void)id_out;
+    // 1. Prepare the header: "type size\0"
+    char header[64];
+    int header_len = snprintf(header, sizeof(header), "%s %ld", type, size);
+    header[header_len++] = '\0'; 
+
+    // 2. Compute SHA-256 hash of (header + data)
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256;
+    SHA256_Init(&sha256);
+    SHA256_Update(&sha256, header, header_len);
+    SHA256_Update(&sha256, data, size);
+    SHA256_Final(hash, &sha256);
+
+    // Store the hex string in sha256_hex
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        sprintf(&sha256_hex[i * 2], "%02x", hash[i]);
+    }
     return -1;
 }
 
